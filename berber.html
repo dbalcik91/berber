@@ -467,6 +467,7 @@ const state = {
   lastTicket: null,
   // lookup (müşteri kendi randevusunu sorgular)
   lookupPhone: '',
+  lookupCountry: '+994',
   lookupResults: null, // null = henüz sorgulanmadı, [] = sonuç yok
   wlName: '',
   wlPhone: '',
@@ -706,10 +707,16 @@ function renderLookupTab(){
   return `
     <div class="section-title">Randevum</div>
     <div class="section-hint">Randevunu görüntülemek veya iptal etmek için telefon numaranı gir.</div>
-    <div style="display:flex; gap:8px; margin-bottom:18px;">
-      <input type="tel" id="lookup-phone" placeholder="05xx xxx xx xx" value="${escapeHtml(state.lookupPhone)}" style="flex:1; font-size:17px; padding:13px 14px; letter-spacing:0.02em;">
-      <button class="btn-secondary" style="flex:0 0 auto; padding:0 18px;" data-action="lookup-search">Sorgula</button>
+    <label class="field-label">Telefon Numarası</label>
+    <div style="display:flex; gap:8px; margin-bottom:12px;">
+      <select id="lookup-country" style="flex:0 0 118px; font-size:16px; padding:14px 8px;">
+        <option value="+994" ${state.lookupCountry==='+994'?'selected':''}>🇦🇿 +994</option>
+        <option value="+90" ${state.lookupCountry==='+90'?'selected':''}>🇹🇷 +90</option>
+        <option value="+7" ${state.lookupCountry==='+7'?'selected':''}>🇷🇺 +7</option>
+      </select>
+      <input type="tel" id="lookup-phone" placeholder="55 123 45 67" value="${escapeHtml(state.lookupPhone)}" style="flex:1; font-size:19px; padding:14px; letter-spacing:0.03em;">
     </div>
+    <button class="btn-primary" style="margin-bottom:18px;" data-action="lookup-search">Sorgula</button>
     ${resultsHtml}
   `;
 }
@@ -1094,6 +1101,8 @@ function attachHandlers(){
   });
   const filterSel = document.getElementById('filter-barber');
   if(filterSel) filterSel.addEventListener('change', e=>{ setState({ filterBarber: e.target.value }); });
+  const countrySel = document.getElementById('lookup-country');
+  if(countrySel) countrySel.addEventListener('change', e=>{ state.lookupCountry = e.target.value; });
 
   // day toggles inside barber modal
   root.querySelectorAll('.day-toggle').forEach(cb=>{
@@ -1168,12 +1177,14 @@ async function onActionInner(e){
   // randevum (sorgula/iptal)
   if(action==='lookup-search'){
     const phoneVal = document.getElementById('lookup-phone')?.value || '';
+    const countryVal = document.getElementById('lookup-country')?.value || state.lookupCountry;
     const norm = normalizePhone(phoneVal);
     if(!norm){ showToast('Telefon numarası gir'); return; }
+    const fullPhone = countryVal + norm;
     const results = state.data.appointments
-      .filter(a=>phoneMatch(a.phone, phoneVal) && (a.date>=todayStr() || a.status==='tamamlandi') && a.status!=='iptal')
+      .filter(a=>phoneMatch(a.phone, fullPhone) && (a.date>=todayStr() || a.status==='tamamlandi') && a.status!=='iptal')
       .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
-    setState({ lookupPhone: phoneVal, lookupResults: results });
+    setState({ lookupPhone: phoneVal, lookupCountry: countryVal, lookupResults: results });
     return;
   }
   if(action==='lookup-cancel'){
