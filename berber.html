@@ -58,8 +58,8 @@
     border:1px solid var(--line);
     color: var(--cream);
     border-radius:6px;
-    padding:11px 13px;
-    font-size:15px;
+    padding:12px 13px;
+    font-size:16px;
     width:100%;
     outline:none;
     transition: border-color .15s ease;
@@ -317,7 +317,8 @@ function defaultData(){
       { id:'s5', name:'Cilt Bakımı (Peeling)', duration:30, price:300 },
       { id:'s6', name:'Saç Boyama', duration:60, price:500 },
     ],
-    appointments: []
+    appointments: [],
+    waitlist: []
   };
 }
 
@@ -346,7 +347,11 @@ async function loadData(){
   }
   try{
     const res = await withRetry(()=> window.storage.get(STORAGE_KEY, true));
-    if(res && res.value) return JSON.parse(res.value);
+    if(res && res.value){
+      const parsed = JSON.parse(res.value);
+      if(!parsed.waitlist) parsed.waitlist = [];
+      return parsed;
+    }
   }catch(e){ /* anahtar henüz yok ya da depolama başarısız oldu, sorun değil */ }
   const d = defaultData();
   try{
@@ -463,6 +468,8 @@ const state = {
   // lookup (müşteri kendi randevusunu sorgular)
   lookupPhone: '',
   lookupResults: null, // null = henüz sorgulanmadı, [] = sonuç yok
+  wlName: '',
+  wlPhone: '',
   // admin
   adminUnlocked: false,
   pinInput: '',
@@ -554,7 +561,16 @@ function renderStep3(){
       const sel = t===state.selTime ? 'selected':'';
       return `<div class="slot ${sel}" data-action="pick-time" data-time="${t}">${t}</div>`;
     }).join('')}</div>`
-    : `<div class="empty-note">Bu tarihte uygun saat yok. Başka bir gün dene.</div>`;
+    : `<div class="empty-note">Bu tarihte uygun saat yok. Başka bir gün dene, ya da iptal olursa haberdar olmak için bekleme listesine katıl.</div>
+       <div class="field" style="margin-top:14px;">
+         <label class="field-label">Ad Soyad</label>
+         <input type="text" id="wl-name" placeholder="Adın Soyadın" value="${escapeHtml(state.wlName)}">
+       </div>
+       <div class="field">
+         <label class="field-label">Telefon</label>
+         <input type="tel" id="wl-phone" placeholder="05xx xxx xx xx" value="${escapeHtml(state.wlPhone)}">
+       </div>
+       <button class="btn-secondary" data-action="join-waitlist">Bekleme Listesine Katıl</button>`;
 
   return `
     <div class="section-title">Tarih & saat seç</div>
@@ -564,6 +580,7 @@ function renderStep3(){
     <div class="btn-row">
       <button class="btn-secondary" data-action="back-step">Geri</button>
       <button class="btn-primary" data-action="goto-step4" ${state.selTime?'':'disabled'}>Devam Et</button>
+
     </div>
   `;
 }
@@ -643,6 +660,14 @@ function renderBookingTab(){
 
 /* ============================= RENDER: RANDEVUM (SORGULA/İPTAL) ============================= */
 function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
+// Farklı yazım biçimlerini (0555.., 994555.., +994555..) tolere etmek için
+// numaraların son 8 hanesini karşılaştırır.
+function phoneMatch(a, b){
+  const na = normalizePhone(a), nb = normalizePhone(b);
+  if(na.length < 6 || nb.length < 6) return false;
+  const tail = 8;
+  return na.slice(-tail) === nb.slice(-tail);
+}
 
 function renderLookupTab(){
   const data = state.data;
@@ -652,11 +677,12 @@ function renderLookupTab(){
   } else if(state.lookupResults.length === 0){
     resultsHtml = `<div class="center-note">Bu numaraya ait yaklaşan randevu bulunamadı.</div>`;
   } else {
-    const completedCount = data.appointments.filter(a=>normalizePhone(a.phone)===normalizePhone(state.lookupPhone) && a.status==='tamamlandi').length;
+    const completedCount = data.appointments.filter(a=>phoneMatch(a.phone, state.lookupPhone) && a.status==='tamamlandi').length;
     resultsHtml = (completedCount>0 ? `<div class="section-hint" style="margin-bottom:14px;">Bu berber salonunda tamamlanan ${completedCount}. randevun bekliyor olabilir — sadakatin için teşekkürler! ✂️</div>` : '') +
       state.lookupResults.map(a=>{
         const barber = getBarber(data, a.barberId);
         const services = apptServices(data, a);
+        const stars = [1,2,3,4,5].map(n=>`<span data-action="rate-appt" data-id="${a.id}" data-stars="${n}" style="cursor:pointer; font-size:20px; padding:2px; color:${a.rating>=n ? 'var(--brass)' : 'var(--muted-2)'};">★</span>`).join('');
         return `
         <div class="appt-item">
           <div class="appt-top">
@@ -669,6 +695,11 @@ function renderLookupTab(){
           <div class="appt-actions">
             <button class="danger" data-action="lookup-cancel" data-id="${a.id}">Randevuyu İptal Et</button>
           </div>` : ''}
+          ${a.status==='tamamlandi' ? `
+          <div style="margin-top:10px; display:flex; align-items:center; gap:8px;">
+            <span style="font-size:12.5px; color:var(--muted);">${a.rating ? 'Puanın:' : 'Nasıldı?'}</span>
+            <div>${stars}</div>
+          </div>` : ''}
         </div>`;
       }).join('');
   }
@@ -676,7 +707,7 @@ function renderLookupTab(){
     <div class="section-title">Randevum</div>
     <div class="section-hint">Randevunu görüntülemek veya iptal etmek için telefon numaranı gir.</div>
     <div style="display:flex; gap:8px; margin-bottom:18px;">
-      <input type="tel" id="lookup-phone" placeholder="05xx xxx xx xx" value="${escapeHtml(state.lookupPhone)}" style="flex:1;">
+      <input type="tel" id="lookup-phone" placeholder="05xx xxx xx xx" value="${escapeHtml(state.lookupPhone)}" style="flex:1; font-size:17px; padding:13px 14px; letter-spacing:0.02em;">
       <button class="btn-secondary" style="flex:0 0 auto; padding:0 18px;" data-action="lookup-search">Sorgula</button>
     </div>
     ${resultsHtml}
@@ -709,7 +740,9 @@ function statsFor(data){
   const perBarber = data.barbers.map(b=>{
     const appts = weekAppts.filter(a=>a.barberId===b.id);
     const rev = appts.reduce((sum,a)=> sum + totalPriceOf(apptServices(data,a)), 0);
-    return { barber:b, count: appts.length, revenue: rev };
+    const ratedAppts = data.appointments.filter(a=>a.barberId===b.id && a.rating);
+    const avgRating = ratedAppts.length ? (ratedAppts.reduce((s,a)=>s+a.rating,0)/ratedAppts.length) : null;
+    return { barber:b, count: appts.length, revenue: rev, avgRating, ratedCount: ratedAppts.length };
   }).sort((a,b)=>b.revenue-a.revenue);
   return { todayCount: todays.length, weekRevenue: revenue, weekCount: weekAppts.length, perBarber };
 }
@@ -770,11 +803,24 @@ function renderAdminAppointments(){
       <div class="list-row">
         <div>
           <div class="name">${escapeHtml(p.barber.name)}</div>
-          <div class="sub">${p.count} randevu</div>
+          <div class="sub">${p.count} randevu${p.avgRating ? ` · ⭐ ${p.avgRating.toFixed(1)} (${p.ratedCount} oy)` : ''}</div>
         </div>
         <div class="mono" style="color:var(--brass); font-size:15px;">${p.revenue}₼</div>
       </div>
     `).join('')}
+    ` : ''}
+    ${(data.waitlist||[]).length ? `
+    <div class="day-heading">Bekleme Listesi (${data.waitlist.length})</div>
+    ${data.waitlist.map(w=>{
+      const barber = getBarber(data, w.barberId);
+      return `<div class="list-row">
+        <div>
+          <div class="name">${escapeHtml(w.customerName)}</div>
+          <div class="sub">${escapeHtml(barber?barber.name:'—')} · ${fmtDateLabel(w.date)} · ${escapeHtml(w.phone)}</div>
+        </div>
+        <button class="icon-btn" data-action="remove-waitlist" data-id="${w.id}">Kaldır</button>
+      </div>`;
+    }).join('')}
     ` : ''}
     <div style="display:flex; gap:8px; margin:18px 0 16px 0;">
       <select id="filter-barber" style="flex:1;">${barberOptions}</select>
@@ -978,7 +1024,7 @@ async function runConfirmedAction(){
     await saveData(state.data);
     const norm = normalizePhone(state.lookupPhone);
     const results = state.data.appointments
-      .filter(a=>normalizePhone(a.phone)===norm && a.date>=todayStr() && a.status!=='iptal')
+      .filter(a=>phoneMatch(a.phone, state.lookupPhone) && (a.date>=todayStr() || a.status==='tamamlandi') && a.status!=='iptal')
       .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
     setState({ modal:null, lookupResults: results });
     showToast('Randevun iptal edildi');
@@ -1036,12 +1082,14 @@ function attachHandlers(){
     pinField.addEventListener('input', e=>{ state.pinInput = e.target.value.replace(/\D/g,'').slice(0,4); });
     pinField.addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
   }
-  ['inp-name','inp-phone','inp-note'].forEach(id=>{
+  ['inp-name','inp-phone','inp-note','wl-name','wl-phone'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.addEventListener('input', e=>{
       if(id==='inp-name') state.custName = e.target.value;
       if(id==='inp-phone') state.custPhone = e.target.value;
       if(id==='inp-note') state.custNote = e.target.value;
+      if(id==='wl-name') state.wlName = e.target.value;
+      if(id==='wl-phone') state.wlPhone = e.target.value;
     });
   });
   const filterSel = document.getElementById('filter-barber');
@@ -1102,6 +1150,20 @@ async function onActionInner(e){
     return;
   }
   if(action==='confirm-booking'){ await confirmBooking(); return; }
+  if(action==='join-waitlist'){
+    const name = document.getElementById('wl-name')?.value.trim() || '';
+    const phone = document.getElementById('wl-phone')?.value.trim() || '';
+    if(!name || !phone){ showToast('Ad ve telefon gerekli'); return; }
+    if(!state.data.waitlist) state.data.waitlist = [];
+    state.data.waitlist.push({
+      id: uid(), barberId: state.selBarber, date: state.selDate,
+      customerName: name, phone, createdAt: new Date().toISOString()
+    });
+    await saveData(state.data);
+    setState({ wlName:'', wlPhone:'' });
+    showToast('Bekleme listesine eklendin, iptal olursa seni ararız');
+    return;
+  }
 
   // randevum (sorgula/iptal)
   if(action==='lookup-search'){
@@ -1109,7 +1171,7 @@ async function onActionInner(e){
     const norm = normalizePhone(phoneVal);
     if(!norm){ showToast('Telefon numarası gir'); return; }
     const results = state.data.appointments
-      .filter(a=>normalizePhone(a.phone)===norm && a.date>=todayStr() && a.status!=='iptal')
+      .filter(a=>phoneMatch(a.phone, phoneVal) && (a.date>=todayStr() || a.status==='tamamlandi') && a.status!=='iptal')
       .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
     setState({ lookupPhone: phoneVal, lookupResults: results });
     return;
@@ -1118,12 +1180,31 @@ async function onActionInner(e){
     setState({ modal:{ type:'confirm', message:'Randevunu iptal etmek istediğine emin misin?', onYes:{ kind:'lookup-cancel-appt', id: el.dataset.id } } });
     return;
   }
+  if(action==='rate-appt'){
+    const appt = state.data.appointments.find(a=>a.id===el.dataset.id);
+    if(!appt) return;
+    appt.rating = parseInt(el.dataset.stars, 10);
+    await saveData(state.data);
+    const results = state.data.appointments
+      .filter(a=>phoneMatch(a.phone, state.lookupPhone) && (a.date>=todayStr() || a.status==='tamamlandi') && a.status!=='iptal')
+      .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    setState({ lookupResults: results });
+    showToast('Teşekkürler, puanın kaydedildi!');
+    return;
+  }
 
   // admin
   if(action==='try-unlock'){ tryUnlock(); return; }
   if(action==='admin-tab'){ setState({ adminTab: el.dataset.tab }); return; }
   if(action==='mark-done'){ await updateApptStatus(el.dataset.id, 'tamamlandi'); return; }
   if(action==='mark-cancel'){ await updateApptStatus(el.dataset.id, 'iptal'); return; }
+  if(action==='remove-waitlist'){
+    state.data.waitlist = (state.data.waitlist||[]).filter(w=>w.id!==el.dataset.id);
+    await saveData(state.data);
+    render();
+    showToast('Bekleme listesinden kaldırıldı');
+    return;
+  }
 
   if(action==='open-add-barber'){ setState({ modal:{type:'barber', editing:null, blockedDates:[]} }); return; }
   if(action==='edit-barber'){
