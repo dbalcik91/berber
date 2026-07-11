@@ -360,10 +360,12 @@ async function loadData(){
 
 async function saveData(data){
   if(!storageAvailable){
+    // Depolama daha önce başarısız oldu; kullanıcıyı bekletmeden arka planda tek seferlik
+    // bir deneme daha yap — backend geri gelmiş olabilir, geri gelirse otomatik senkrona döner.
     if(window.storage){
       window.storage.set(STORAGE_KEY, JSON.stringify(data), true)
         .then(res=>{ if(res){ storageAvailable = true; } })
-        .catch(()=>{});
+        .catch(()=>{ /* hâlâ kullanılamıyor, sessizce yut */ });
     }
     return true;
   }
@@ -374,7 +376,7 @@ async function saveData(data){
   }catch(e){
     console.warn('Depolama 3 denemeden sonra kullanılamadı, oturum içi bellek modunda devam ediliyor.', e);
     storageAvailable = false;
-    return true;
+    return true; // veri state.data içinde zaten güncellendi, uygulama akışı durmasın
   }
 }
 
@@ -399,6 +401,7 @@ function totalDurationOf(services){ return services.reduce((sum,s)=>sum+s.durati
 function totalPriceOf(services){ return services.reduce((sum,s)=>sum+s.price,0); }
 function serviceNamesOf(services){ return services.map(s=>s.name).join(' + '); }
 
+// Eski kayıtlarla (tek serviceId alanlı) uyumluluk için: randevunun hizmet listesini döndürür
 function apptServices(data, appt){
   if(appt.serviceIds && Array.isArray(appt.serviceIds)) return appt.serviceIds.map(id=>getService(data,id)).filter(Boolean);
   if(appt.serviceId){ const s = getService(data, appt.serviceId); return s ? [s] : []; }
@@ -416,6 +419,7 @@ function generateSlots(barber, dateStr, serviceDuration, appointments){
   const end = timeToMin(wh.end);
   while(cur + serviceDuration <= end){ slots.push(cur); cur += stepMin; }
   const busy = appointments.filter(a=>a.barberId===barber.id && a.date===dateStr && a.status!=='iptal').map(a=>{
+    const svc = { duration: a.duration || 30 };
     const s = timeToMin(a.time);
     return [s, s+(a.duration||30)];
   });
@@ -445,7 +449,8 @@ function nextDays(n){
 /* ============================= UYGULAMA DURUMU ============================= */
 const state = {
   data: null,
-  tab: 'book',
+  tab: 'book', // 'book' | 'lookup' | 'admin'
+  // booking flow
   step: 1,
   selBarber: null,
   selServices: [],
@@ -455,13 +460,15 @@ const state = {
   custPhone: '',
   custNote: '',
   lastTicket: null,
+  // lookup (müşteri kendi randevusunu sorgular)
   lookupPhone: '',
-  lookupResults: null,
+  lookupResults: null, // null = henüz sorgulanmadı, [] = sonuç yok
+  // admin
   adminUnlocked: false,
   pinInput: '',
-  adminTab: 'appointments',
+  adminTab: 'appointments', // appointments | barbers | services
   filterBarber: 'all',
-  modal: null,
+  modal: null, // {type:'barber'|'service', editing:id|null}
   toast: null,
 };
 
@@ -514,11 +521,11 @@ function renderStep2(){
       return `<div class="card selectable ${sel}" data-action="pick-service" data-id="${s.id}">
         <div class="service-row">
           <div class="service-info"><b>${checkMark}${escapeHtml(s.name)}</b><span>${s.duration} dk</span></div>
-          <div class="service-price">${s.price}₺</div>
+          <div class="service-price">${s.price}₼</div>
         </div>
       </div>`;
     }).join('')}
-    ${selected.length ? `<div class="section-hint" style="margin-top:4px;">Toplam: ${totalDuration} dk · ${totalPrice}₺ (${selected.length} hizmet)</div>` : ''}
+    ${selected.length ? `<div class="section-hint" style="margin-top:4px;">Toplam: ${totalDuration} dk · ${totalPrice}₼ (${selected.length} hizmet)</div>` : ''}
     <div class="btn-row">
       <button class="btn-secondary" data-action="back-step">Geri</button>
       <button class="btn-primary" data-action="goto-step3" ${state.selServices.length?'':'disabled'}>Devam Et</button>
@@ -567,7 +574,7 @@ function renderStep4(){
   const totalPrice = totalPriceOf(services);
   return `
     <div class="section-title">Bilgilerini gir</div>
-    <div class="section-hint">${escapeHtml(barber.name)} · ${escapeHtml(serviceNamesOf(services))} · ${fmtDateLabel(state.selDate)}, ${state.selTime} · Toplam ${totalPrice}₺</div>
+    <div class="section-hint">${escapeHtml(barber.name)} · ${escapeHtml(serviceNamesOf(services))} · ${fmtDateLabel(state.selDate)}, ${state.selTime} · Toplam ${totalPrice}₼</div>
     <div class="field">
       <label class="field-label">Ad Soyad</label>
       <input type="text" id="inp-name" placeholder="Adın Soyadın" value="${escapeHtml(state.custName)}">
@@ -593,7 +600,7 @@ function renderTicket(){
   const services = apptServices(state.data, t);
   const totalPrice = totalPriceOf(services);
   const waText = encodeURIComponent(
-    `Randevu Onayı — Ustura\nSıra No: ${t.queueLabel}\nBerber: ${barber.name}\nHizmet: ${serviceNamesOf(services)}\nTarih: ${fmtDateLabel(t.date)}, ${t.time}\nToplam: ${totalPrice}₺`
+    `Randevu Onayı — Ustura\nSıra No: ${t.queueLabel}\nBerber: ${barber.name}\nHizmet: ${serviceNamesOf(services)}\nTarih: ${fmtDateLabel(t.date)}, ${t.time}\nToplam: ${totalPrice}₼`
   );
   return `
     <div class="section-title">Randevun alındı</div>
@@ -612,7 +619,7 @@ function renderTicket(){
       <div class="ticket-row"><span class="k">Hizmet</span><span class="v">${escapeHtml(serviceNamesOf(services))}</span></div>
       <div class="ticket-row"><span class="k">Tarih</span><span class="v">${fmtDateLabel(t.date)}</span></div>
       <div class="ticket-row"><span class="k">Saat</span><span class="v">${t.time}</span></div>
-      <div class="ticket-row"><span class="k">Toplam Ücret</span><span class="v">${totalPrice}₺</span></div>
+      <div class="ticket-row"><span class="k">Toplam Ücret</span><span class="v">${totalPrice}₼</span></div>
     </div>
     <div style="margin-top:12px;">
       <a href="https://wa.me/?text=${waText}" target="_blank" rel="noopener" class="btn-secondary" style="display:block; text-decoration:none;">WhatsApp'ta Kaydet / Paylaş</a>
@@ -657,7 +664,7 @@ function renderLookupTab(){
             <span class="badge ${a.status}">${a.status==='onaylandi' ? 'Onaylandı' : a.status==='tamamlandi' ? 'Tamamlandı' : 'İptal'}</span>
           </div>
           <div class="appt-name">${escapeHtml(barber?barber.name:'—')}</div>
-          <div class="appt-meta">${escapeHtml(serviceNamesOf(services))} · ${totalPriceOf(services)}₺</div>
+          <div class="appt-meta">${escapeHtml(serviceNamesOf(services))} · ${totalPriceOf(services)}₼</div>
           ${a.status==='onaylandi' ? `
           <div class="appt-actions">
             <button class="danger" data-action="lookup-cancel" data-id="${a.id}">Randevuyu İptal Et</button>
@@ -713,6 +720,7 @@ function renderAdminAppointments(){
   let list = data.appointments.slice();
   if(state.filterBarber!=='all') list = list.filter(a=>a.barberId===state.filterBarber);
   list.sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
+  // only show today and future by default, most relevant first
   const future = list.filter(a=>a.date>=todayStr());
   const grouped = {};
   future.forEach(a=>{ (grouped[a.date] = grouped[a.date]||[]).push(a); });
@@ -738,7 +746,7 @@ function renderAdminAppointments(){
               <span class="badge ${a.status}">${a.status==='onaylandi' ? 'Onaylandı': a.status==='tamamlandi' ? 'Tamamlandı' : 'İptal'}</span>
             </div>
             <div class="appt-name">${escapeHtml(a.customerName)}</div>
-            <div class="appt-meta">${escapeHtml(barber?barber.name:'—')} · ${escapeHtml(serviceLabel)} · ${priceLabel}₺ · ${escapeHtml(a.phone||'—')}</div>
+            <div class="appt-meta">${escapeHtml(barber?barber.name:'—')} · ${escapeHtml(serviceLabel)} · ${priceLabel}₼ · ${escapeHtml(a.phone||'—')}</div>
             ${a.note ? `<div class="appt-meta">Not: ${escapeHtml(a.note)}</div>` : ''}
             ${a.status==='onaylandi' ? `
             <div class="appt-actions">
@@ -754,7 +762,7 @@ function renderAdminAppointments(){
   return `
     <div class="stat-grid">
       <div class="stat-card"><div class="stat-num">${stats.todayCount}</div><div class="stat-label">Bugünkü Randevu</div></div>
-      <div class="stat-card"><div class="stat-num">${stats.weekRevenue}₺</div><div class="stat-label">Haftalık Tahmini Ciro</div></div>
+      <div class="stat-card"><div class="stat-num">${stats.weekRevenue}₼</div><div class="stat-label">Haftalık Tahmini Ciro</div></div>
     </div>
     ${stats.perBarber.length ? `
     <div class="day-heading" style="margin-top:0;">Bu Hafta Berber Bazlı Performans</div>
@@ -764,7 +772,7 @@ function renderAdminAppointments(){
           <div class="name">${escapeHtml(p.barber.name)}</div>
           <div class="sub">${p.count} randevu</div>
         </div>
-        <div class="mono" style="color:var(--brass); font-size:15px;">${p.revenue}₺</div>
+        <div class="mono" style="color:var(--brass); font-size:15px;">${p.revenue}₼</div>
       </div>
     `).join('')}
     ` : ''}
@@ -803,7 +811,7 @@ function renderAdminServices(){
     return `<div class="list-row">
       <div>
         <div class="name">${escapeHtml(s.name)}</div>
-        <div class="sub">${s.duration} dk · ${s.price}₺</div>
+        <div class="sub">${s.duration} dk · ${s.price}₼</div>
       </div>
       <div style="display:flex; gap:6px;">
         <button class="icon-btn" data-action="edit-service" data-id="${s.id}">Düzenle</button>
@@ -901,7 +909,7 @@ function renderServiceModal(){
       <input type="number" id="m-duration" value="${editing?editing.duration:30}" min="5" step="5">
     </div>
     <div class="field">
-      <label class="field-label">Fiyat (₺)</label>
+      <label class="field-label">Fiyat (₼)</label>
       <input type="number" id="m-price" value="${editing?editing.price:100}" min="0" step="10">
     </div>
     <div class="btn-row">
@@ -918,7 +926,7 @@ function renderAddApptModal(){
     <label style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;">
       <input type="checkbox" class="m-service-cb" value="${s.id}" style="width:auto;">
       <span style="flex:1;">${escapeHtml(s.name)}</span>
-      <span class="mono" style="color:var(--muted);font-size:12.5px;">${s.duration}dk · ${s.price}₺</span>
+      <span class="mono" style="color:var(--muted);font-size:12.5px;">${s.duration}dk · ${s.price}₼</span>
     </label>
   `).join('');
   return `
@@ -1039,6 +1047,7 @@ function attachHandlers(){
   const filterSel = document.getElementById('filter-barber');
   if(filterSel) filterSel.addEventListener('change', e=>{ setState({ filterBarber: e.target.value }); });
 
+  // day toggles inside barber modal
   root.querySelectorAll('.day-toggle').forEach(cb=>{
     cb.addEventListener('change', e=>{
       const day = e.target.dataset.day;
@@ -1072,6 +1081,7 @@ async function onActionInner(e){
 
   if(action==='switch-tab'){ setState({ tab: el.dataset.tab }); return; }
 
+  // booking flow
   if(action==='pick-barber'){ setState({ selBarber: el.dataset.id }); return; }
   if(action==='goto-step2'){ setState({ step:2 }); return; }
   if(action==='pick-service'){
@@ -1093,6 +1103,7 @@ async function onActionInner(e){
   }
   if(action==='confirm-booking'){ await confirmBooking(); return; }
 
+  // randevum (sorgula/iptal)
   if(action==='lookup-search'){
     const phoneVal = document.getElementById('lookup-phone')?.value || '';
     const norm = normalizePhone(phoneVal);
@@ -1108,6 +1119,7 @@ async function onActionInner(e){
     return;
   }
 
+  // admin
   if(action==='try-unlock'){ tryUnlock(); return; }
   if(action==='admin-tab'){ setState({ adminTab: el.dataset.tab }); return; }
   if(action==='mark-done'){ await updateApptStatus(el.dataset.id, 'tamamlandi'); return; }
