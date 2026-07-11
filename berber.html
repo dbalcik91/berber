@@ -1,0 +1,1302 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1">
+<title>Ustura — Randevu Sistemi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&family=Work+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg: #16130E;
+    --bg-panel: #201C15;
+    --bg-panel-2: #2A2419;
+    --line: #3A3226;
+    --brass: #C9A24B;
+    --brass-soft: rgba(201,162,75,0.14);
+    --cream: #F1E9D8;
+    --muted: #A99C87;
+    --muted-2: #756B5A;
+    --burgundy: #7C2A34;
+    --burgundy-soft: rgba(124,42,52,0.18);
+    --steel: #3C5A73;
+    --steel-soft: rgba(60,90,115,0.18);
+    --ok: #5E8C61;
+    --ok-soft: rgba(94,140,97,0.16);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    background: var(--bg);
+    background-image:
+      radial-gradient(circle at 15% 0%, rgba(201,162,75,0.06), transparent 40%),
+      radial-gradient(circle at 90% 20%, rgba(124,42,52,0.07), transparent 45%);
+    color: var(--cream);
+    font-family:'Work Sans', sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  h1,h2,h3,.display{
+    font-family:'Oswald', sans-serif;
+    text-transform:uppercase;
+    letter-spacing:0.04em;
+    font-weight:600;
+    margin:0;
+  }
+  .mono{ font-family:'IBM Plex Mono', monospace; }
+  a{color:inherit;}
+  button{
+    font-family:inherit;
+    cursor:pointer;
+    border:none;
+    background:none;
+    color:inherit;
+  }
+  input, select{
+    font-family:'Work Sans', sans-serif;
+    background: var(--bg);
+    border:1px solid var(--line);
+    color: var(--cream);
+    border-radius:6px;
+    padding:11px 13px;
+    font-size:15px;
+    width:100%;
+    outline:none;
+    transition: border-color .15s ease;
+  }
+  input:focus, select:focus{ border-color: var(--brass); }
+  input::placeholder{ color: var(--muted-2); }
+
+  /* ---------- App shell ---------- */
+  .app{ max-width:640px; margin:0 auto; min-height:100vh; display:flex; flex-direction:column; }
+
+  header.topbar{
+    position:sticky; top:0; z-index:20;
+    background: rgba(22,19,14,0.92);
+    backdrop-filter: blur(6px);
+    border-bottom:1px solid var(--line);
+    padding:16px 18px 0 18px;
+  }
+  .brand{ display:flex; align-items:center; gap:10px; padding-bottom:14px; }
+  .brand-mark{
+    width:34px; height:34px; border-radius:50%;
+    border:1.5px solid var(--brass);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; flex-shrink:0;
+  }
+  .brand-mark::before{
+    content:"";
+    position:absolute; inset:5px;
+    background: repeating-linear-gradient(45deg, var(--brass) 0 2px, transparent 2px 5px);
+    border-radius:50%;
+    opacity:0.9;
+  }
+  .brand-name{ font-size:19px; letter-spacing:0.12em; }
+  .brand-sub{ font-family:'Work Sans'; text-transform:none; font-size:11.5px; color:var(--muted); letter-spacing:0.02em; margin-top:1px; }
+
+  nav.tabs{ display:flex; gap:4px; }
+  nav.tabs button{
+    flex:1;
+    padding:11px 6px 12px 6px;
+    font-family:'Oswald'; text-transform:uppercase; letter-spacing:0.06em; font-size:13px;
+    color:var(--muted);
+    border-bottom:2px solid transparent;
+  }
+  nav.tabs button.active{ color:var(--brass); border-bottom-color: var(--brass); }
+
+  main{ flex:1; padding:22px 18px 70px 18px; }
+
+  .razor-line{
+    height:1px; margin:26px 0;
+    background: linear-gradient(90deg, transparent, var(--line) 15%, var(--brass) 50%, var(--line) 85%, transparent);
+    opacity:0.6;
+  }
+
+  /* ---------- Step indicator ---------- */
+  .steps{ display:flex; gap:6px; margin-bottom:22px; }
+  .step{
+    flex:1; text-align:left; padding-bottom:8px;
+    border-bottom:2px solid var(--line);
+  }
+  .step.active{ border-bottom-color: var(--brass); }
+  .step.done{ border-bottom-color: var(--muted-2); }
+  .step-num{ font-family:'IBM Plex Mono'; font-size:11px; color:var(--muted-2); }
+  .step.active .step-num{ color:var(--brass); }
+  .step-label{ font-family:'Oswald'; font-size:11.5px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin-top:2px; }
+  .step.active .step-label{ color:var(--cream); }
+
+  .section-title{ font-size:22px; margin-bottom:4px; }
+  .section-hint{ color:var(--muted); font-size:13.5px; margin-bottom:18px; }
+
+  /* ---------- Barber cards ---------- */
+  .card{
+    background: var(--bg-panel);
+    border:1px solid var(--line);
+    border-radius:10px;
+    padding:16px;
+    margin-bottom:10px;
+    transition: border-color .15s ease, background .15s ease;
+  }
+  .card.selectable{ cursor:pointer; }
+  .card.selectable:active{ transform: scale(0.99); }
+  .card.selected{ border-color: var(--brass); background: var(--brass-soft); }
+
+  .barber-row{ display:flex; align-items:center; gap:14px; }
+  .avatar{
+    width:48px; height:48px; border-radius:50%;
+    background: var(--bg-panel-2);
+    border:1px solid var(--line);
+    display:flex; align-items:center; justify-content:center;
+    font-family:'Oswald'; font-size:16px; color:var(--brass);
+    flex-shrink:0;
+  }
+  .barber-info b{ font-family:'Oswald'; font-weight:500; font-size:15.5px; letter-spacing:0.02em; display:block; }
+  .barber-info span{ color:var(--muted); font-size:13px; }
+  .off-badge{ margin-left:auto; font-size:11.5px; color:var(--muted-2); font-family:'IBM Plex Mono'; }
+
+  .service-row{ display:flex; justify-content:space-between; align-items:center; }
+  .service-info b{ font-family:'Work Sans'; font-weight:600; font-size:15px; display:block; }
+  .service-info span{ color:var(--muted); font-size:12.5px; }
+  .service-price{ font-family:'IBM Plex Mono'; color:var(--brass); font-size:15px; white-space:nowrap; }
+
+  /* ---------- Date chips ---------- */
+  .date-scroll{ display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:18px; -webkit-overflow-scrolling:touch; }
+  .date-scroll::-webkit-scrollbar{ height:0; }
+  .date-chip{
+    flex-shrink:0; width:58px; padding:10px 0 9px 0;
+    border:1px solid var(--line); border-radius:9px;
+    text-align:center; background:var(--bg-panel);
+  }
+  .date-chip .dow{ font-size:10.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; }
+  .date-chip .dnum{ font-family:'Oswald'; font-size:19px; margin-top:2px; }
+  .date-chip.selected{ border-color:var(--brass); background:var(--brass-soft); }
+  .date-chip.selected .dow{ color:var(--brass); }
+  .date-chip.disabled{ opacity:0.32; }
+
+  .slot-grid{ display:grid; grid-template-columns:repeat(3, 1fr); gap:8px; }
+  .slot{
+    padding:11px 0; text-align:center; border:1px solid var(--line); border-radius:8px;
+    font-family:'IBM Plex Mono'; font-size:14px; background:var(--bg-panel);
+  }
+  .slot.selected{ border-color:var(--brass); background:var(--brass-soft); color:var(--brass); }
+  .empty-note{ color:var(--muted); font-size:13.5px; padding:14px 0; text-align:center; border:1px dashed var(--line); border-radius:8px; }
+
+  /* ---------- Buttons ---------- */
+  .btn-primary{
+    width:100%; padding:14px; border-radius:8px;
+    background: var(--brass); color:#1B1608;
+    font-family:'Oswald'; text-transform:uppercase; letter-spacing:0.06em; font-size:14.5px; font-weight:600;
+    text-align:center;
+  }
+  .btn-primary:disabled{ opacity:0.35; }
+  .btn-secondary{
+    width:100%; padding:13px; border-radius:8px;
+    border:1px solid var(--line); color:var(--cream);
+    font-family:'Oswald'; text-transform:uppercase; letter-spacing:0.06em; font-size:13.5px;
+    text-align:center;
+  }
+  .btn-row{ display:flex; gap:10px; margin-top:20px; }
+  .btn-row .btn-secondary{ flex:0 0 90px; }
+  .btn-row .btn-primary{ flex:1; }
+
+  label.field-label{ font-size:12.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.05em; display:block; margin-bottom:6px; font-family:'Oswald'; }
+  .field{ margin-bottom:14px; }
+
+  /* ---------- Ticket ---------- */
+  .ticket{
+    background: var(--bg-panel);
+    border:1px solid var(--brass);
+    border-radius:12px;
+    position:relative;
+    padding:24px 20px 20px 20px;
+    margin-top:6px;
+  }
+  .ticket::before, .ticket::after{
+    content:""; position:absolute; width:18px; height:18px; background:var(--bg); border-radius:50%;
+    top:50%; transform:translateY(-50%);
+  }
+  .ticket::before{ left:-9px; }
+  .ticket::after{ right:-9px; }
+  .ticket-top{ display:flex; justify-content:space-between; align-items:flex-start; }
+  .ticket-num{ font-family:'IBM Plex Mono'; font-size:30px; color:var(--brass); letter-spacing:0.03em; }
+  .ticket-status{ font-family:'Oswald'; font-size:11px; letter-spacing:0.05em; text-transform:uppercase; background:var(--ok-soft); color:var(--ok); padding:4px 9px; border-radius:20px; }
+  .ticket-dash{ border-top:1px dashed var(--line); margin:16px 0; }
+  .ticket-row{ display:flex; justify-content:space-between; margin-bottom:9px; font-size:14px; }
+  .ticket-row .k{ color:var(--muted); }
+  .ticket-row .v{ font-weight:600; text-align:right; }
+
+  /* ---------- Admin ---------- */
+  .lock-wrap{ text-align:center; padding:40px 10px; }
+  .lock-icon{ font-size:34px; margin-bottom:10px; }
+  .pin-input{ text-align:center; letter-spacing:0.5em; font-family:'IBM Plex Mono'; font-size:20px; }
+  .admin-tabs{ display:flex; gap:6px; margin-bottom:20px; }
+  .admin-tabs button{
+    flex:1; padding:9px 4px; border:1px solid var(--line); border-radius:7px;
+    font-family:'Oswald'; text-transform:uppercase; font-size:12px; letter-spacing:0.04em; color:var(--muted);
+  }
+  .admin-tabs button.active{ color:var(--brass); border-color:var(--brass); background:var(--brass-soft); }
+
+  .stat-grid{ display:grid; grid-template-columns:1fr 1fr; gap:10px; margin-bottom:20px; }
+  .stat-card{ background:var(--bg-panel); border:1px solid var(--line); border-radius:10px; padding:14px; }
+  .stat-num{ font-family:'Oswald'; font-size:26px; color:var(--brass); }
+  .stat-label{ font-size:11.5px; color:var(--muted); text-transform:uppercase; letter-spacing:0.04em; font-family:'Oswald'; margin-top:2px;}
+
+  .appt-item{ background:var(--bg-panel); border:1px solid var(--line); border-radius:10px; padding:13px 14px; margin-bottom:9px; }
+  .appt-top{ display:flex; justify-content:space-between; align-items:center; margin-bottom:6px; }
+  .appt-time{ font-family:'IBM Plex Mono'; color:var(--brass); font-size:15px; }
+  .badge{ font-family:'Oswald'; font-size:10.5px; text-transform:uppercase; letter-spacing:0.04em; padding:3px 8px; border-radius:20px; }
+  .badge.onaylandi{ background:var(--ok-soft); color:var(--ok); }
+  .badge.tamamlandi{ background:var(--steel-soft); color:#7FA6C4; }
+  .badge.iptal{ background:var(--burgundy-soft); color:#D08B93; }
+  .appt-name{ font-weight:600; font-size:14.5px; }
+  .appt-meta{ color:var(--muted); font-size:12.5px; margin-top:2px; }
+  .appt-actions{ display:flex; gap:6px; margin-top:10px; }
+  .appt-actions button{
+    flex:1; padding:7px 0; border:1px solid var(--line); border-radius:6px; font-size:11.5px;
+    font-family:'Oswald'; text-transform:uppercase; letter-spacing:0.03em; color:var(--muted);
+  }
+  .appt-actions button.danger:active{ background:var(--burgundy-soft); color:#D08B93; }
+  .appt-actions button.ok:active{ background:var(--steel-soft); color:#7FA6C4; }
+
+  .day-heading{ font-family:'Oswald'; font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); margin:20px 0 8px 0; }
+  .day-heading:first-child{ margin-top:0; }
+
+  .list-row{ display:flex; align-items:center; justify-content:space-between; background:var(--bg-panel); border:1px solid var(--line); border-radius:10px; padding:13px 14px; margin-bottom:9px; }
+  .list-row .name{ font-weight:600; font-size:14.5px; }
+  .list-row .sub{ color:var(--muted); font-size:12.5px; margin-top:2px; }
+  .icon-btn{ padding:6px 10px; border:1px solid var(--line); border-radius:6px; font-size:12px; font-family:'Oswald'; text-transform:uppercase; color:var(--muted); }
+
+  .modal-bg{ position:fixed; inset:0; background:rgba(0,0,0,0.6); z-index:50; display:flex; align-items:flex-end; justify-content:center; }
+  .modal{ background:var(--bg-panel); border:1px solid var(--line); border-top-left-radius:16px; border-top-right-radius:16px; width:100%; max-width:640px; padding:22px 18px 26px 18px; max-height:85vh; overflow-y:auto; }
+  .modal-title{ font-size:18px; margin-bottom:16px; }
+
+  .close-x{ position:absolute; top:14px; right:16px; font-size:20px; color:var(--muted); }
+
+  .day-hours-row{ display:flex; align-items:center; gap:8px; margin-bottom:8px; font-size:13.5px; }
+  .day-hours-row .dname{ width:38px; color:var(--muted); font-family:'Oswald'; font-size:12px; text-transform:uppercase; }
+  .day-hours-row input[type=time]{ padding:8px; font-size:13px; }
+  .day-hours-row input[type=checkbox]{ width:auto; }
+
+  .toast{
+    position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    background:var(--brass); color:#1B1608; padding:11px 20px; border-radius:30px;
+    font-family:'Oswald'; text-transform:uppercase; font-size:12.5px; letter-spacing:0.04em;
+    z-index:100; box-shadow:0 6px 18px rgba(0,0,0,0.4);
+  }
+
+  .center-note{ text-align:center; color:var(--muted); font-size:13.5px; padding:30px 10px; }
+  .loading{ text-align:center; color:var(--muted); padding:60px 10px; font-family:'Oswald'; text-transform:uppercase; letter-spacing:0.06em; font-size:13px; }
+</style>
+</head>
+<body>
+<div id="root" class="app"><div class="loading">Yükleniyor…</div></div>
+
+<script>
+/* ============================= VERİ KATMANI ============================= */
+const STORAGE_KEY = 'salon-data';
+const DAY_NAMES = ['Paz','Pzt','Sal','Çar','Per','Cum','Cmt'];
+const DAY_NAMES_FULL = ['Pazar','Pazartesi','Salı','Çarşamba','Perşembe','Cuma','Cumartesi'];
+
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,7); }
+
+function defaultData(){
+  return {
+    barbers: [
+      { id:'b1', name:'Mert Aydın', title:'Klasik Kesim Ustası', blockedDates:[],
+        workingHours:{0:null, 1:{start:'09:00',end:'19:00'}, 2:{start:'09:00',end:'19:00'}, 3:{start:'09:00',end:'19:00'}, 4:{start:'09:00',end:'19:00'}, 5:{start:'09:00',end:'19:00'}, 6:{start:'09:00',end:'17:00'}} },
+      { id:'b2', name:'Emre Kılıç', title:'Sakal & Cilt Bakımı', blockedDates:[],
+        workingHours:{0:{start:'11:00',end:'18:00'}, 1:null, 2:{start:'10:00',end:'20:00'}, 3:{start:'10:00',end:'20:00'}, 4:{start:'10:00',end:'20:00'}, 5:{start:'10:00',end:'20:00'}, 6:{start:'10:00',end:'20:00'}} },
+      { id:'b3', name:'Ali Demir', title:'Çocuk & Aile Berberi', blockedDates:[],
+        workingHours:{0:null, 1:{start:'09:30',end:'18:30'}, 2:{start:'09:30',end:'18:30'}, 3:{start:'09:30',end:'18:30'}, 4:{start:'09:30',end:'18:30'}, 5:{start:'09:30',end:'18:30'}, 6:{start:'09:30',end:'18:30'}} },
+    ],
+    services: [
+      { id:'s1', name:'Saç Kesimi', duration:30, price:250 },
+      { id:'s2', name:'Sakal Tıraşı', duration:20, price:150 },
+      { id:'s3', name:'Saç + Sakal', duration:45, price:350 },
+      { id:'s4', name:'Çocuk Kesimi', duration:25, price:200 },
+      { id:'s5', name:'Cilt Bakımı (Peeling)', duration:30, price:300 },
+      { id:'s6', name:'Saç Boyama', duration:60, price:500 },
+    ],
+    appointments: []
+  };
+}
+
+let storageAvailable = true;
+
+function sleep(ms){ return new Promise(r=>setTimeout(r, ms)); }
+
+// Geçici backend hatalarına (örn. "Invalid response format") karşı otomatik yeniden deneme.
+async function withRetry(fn, attempts=3){
+  let lastErr;
+  for(let i=0;i<attempts;i++){
+    try{
+      return await fn();
+    }catch(e){
+      lastErr = e;
+      if(i < attempts-1) await sleep(300 * (i+1)); // artan bekleme: 300ms, 600ms
+    }
+  }
+  throw lastErr;
+}
+
+async function loadData(){
+  if(typeof window.storage === 'undefined' || !window.storage){
+    storageAvailable = false;
+    return defaultData();
+  }
+  try{
+    const res = await withRetry(()=> window.storage.get(STORAGE_KEY, true));
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){ /* anahtar henüz yok ya da depolama başarısız oldu, sorun değil */ }
+  const d = defaultData();
+  try{
+    await withRetry(()=> window.storage.set(STORAGE_KEY, JSON.stringify(d), true));
+  }catch(e){
+    console.warn('Depolama 3 denemeden sonra kullanılamadı, oturum içi bellek modunda devam ediliyor.', e);
+    storageAvailable = false;
+  }
+  return d;
+}
+
+async function saveData(data){
+  if(!storageAvailable){
+    if(window.storage){
+      window.storage.set(STORAGE_KEY, JSON.stringify(data), true)
+        .then(res=>{ if(res){ storageAvailable = true; } })
+        .catch(()=>{});
+    }
+    return true;
+  }
+  try{
+    const res = await withRetry(()=> window.storage.set(STORAGE_KEY, JSON.stringify(data), true));
+    if(!res){ storageAvailable = false; return true; }
+    return true;
+  }catch(e){
+    console.warn('Depolama 3 denemeden sonra kullanılamadı, oturum içi bellek modunda devam ediliyor.', e);
+    storageAvailable = false;
+    return true;
+  }
+}
+
+/* ============================= YARDIMCI FONKSİYONLAR ============================= */
+function timeToMin(t){ const [h,m]=t.split(':').map(Number); return h*60+m; }
+function minToTime(m){ const h=Math.floor(m/60).toString().padStart(2,'0'); const mm=(m%60).toString().padStart(2,'0'); return h+':'+mm; }
+function localDateStr(d){ const y=d.getFullYear(), m=(d.getMonth()+1).toString().padStart(2,'0'), day=d.getDate().toString().padStart(2,'0'); return `${y}-${m}-${day}`; }
+function fmtDateLabel(dateStr){
+  const d = new Date(dateStr+'T00:00:00');
+  return d.toLocaleDateString('tr-TR', {day:'numeric', month:'long', year:'numeric', weekday:'long'});
+}
+function todayStr(){ return localDateStr(new Date()); }
+function escapeHtml(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+function getService(data, id){ return data.services.find(s=>s.id===id); }
+function getBarber(data, id){ return data.barbers.find(b=>b.id===id); }
+
+function selectedServiceObjs(){
+  return state.data.services.filter(s=>state.selServices.includes(s.id));
+}
+function totalDurationOf(services){ return services.reduce((sum,s)=>sum+s.duration,0); }
+function totalPriceOf(services){ return services.reduce((sum,s)=>sum+s.price,0); }
+function serviceNamesOf(services){ return services.map(s=>s.name).join(' + '); }
+
+function apptServices(data, appt){
+  if(appt.serviceIds && Array.isArray(appt.serviceIds)) return appt.serviceIds.map(id=>getService(data,id)).filter(Boolean);
+  if(appt.serviceId){ const s = getService(data, appt.serviceId); return s ? [s] : []; }
+  return [];
+}
+
+function generateSlots(barber, dateStr, serviceDuration, appointments){
+  if(barber.blockedDates && barber.blockedDates.includes(dateStr)) return [];
+  const day = new Date(dateStr+'T00:00:00').getDay();
+  const wh = barber.workingHours[day];
+  if(!wh) return [];
+  const stepMin = 30;
+  let slots = [];
+  let cur = timeToMin(wh.start);
+  const end = timeToMin(wh.end);
+  while(cur + serviceDuration <= end){ slots.push(cur); cur += stepMin; }
+  const busy = appointments.filter(a=>a.barberId===barber.id && a.date===dateStr && a.status!=='iptal').map(a=>{
+    const s = timeToMin(a.time);
+    return [s, s+(a.duration||30)];
+  });
+  slots = slots.filter(s=>{
+    const sEnd = s + serviceDuration;
+    return !busy.some(([bs,be]) => s < be && sEnd > bs);
+  });
+  if(dateStr === todayStr()){
+    const now = new Date();
+    const nowMin = now.getHours()*60 + now.getMinutes() + 15;
+    slots = slots.filter(s => s > nowMin);
+  }
+  return slots.map(minToTime);
+}
+
+function nextDays(n){
+  const out = [];
+  const base = new Date();
+  for(let i=0;i<n;i++){
+    const d = new Date(base);
+    d.setDate(base.getDate()+i);
+    out.push(d);
+  }
+  return out;
+}
+
+/* ============================= UYGULAMA DURUMU ============================= */
+const state = {
+  data: null,
+  tab: 'book',
+  step: 1,
+  selBarber: null,
+  selServices: [],
+  selDate: todayStr(),
+  selTime: null,
+  custName: '',
+  custPhone: '',
+  custNote: '',
+  lastTicket: null,
+  lookupPhone: '',
+  lookupResults: null,
+  adminUnlocked: false,
+  pinInput: '',
+  adminTab: 'appointments',
+  filterBarber: 'all',
+  modal: null,
+  toast: null,
+};
+
+function setState(patch){ Object.assign(state, patch); render(); }
+function showToast(msg){ state.toast = msg; render(); setTimeout(()=>{ state.toast=null; render(); }, 2200); }
+
+/* ============================= RENDER: BOOKING ============================= */
+function renderSteps(){
+  const labels = ['Berber','Hizmet','Tarih & Saat','Onay'];
+  return `<div class="steps">${labels.map((l,i)=>{
+    const n = i+1;
+    const cls = n===state.step ? 'active' : (n<state.step ? 'done' : '');
+    return `<div class="step ${cls}"><div class="step-num">0${n}</div><div class="step-label">${l}</div></div>`;
+  }).join('')}</div>`;
+}
+
+function renderStep1(){
+  const barbers = state.data.barbers;
+  return `
+    <div class="section-title">Berberini seç</div>
+    <div class="section-hint">Randevu almak istediğin ustayı seç.</div>
+    ${barbers.map(b=>{
+      const sel = state.selBarber===b.id ? 'selected':'';
+      const initials = b.name.split(' ').map(w=>w[0]).join('');
+      return `<div class="card selectable ${sel}" data-action="pick-barber" data-id="${b.id}">
+        <div class="barber-row">
+          <div class="avatar">${initials}</div>
+          <div class="barber-info"><b>${escapeHtml(b.name)}</b><span>${escapeHtml(b.title)}</span></div>
+        </div>
+      </div>`;
+    }).join('')}
+    <div class="btn-row">
+      <div></div>
+      <button class="btn-primary" data-action="goto-step2" ${state.selBarber?'':'disabled'}>Devam Et</button>
+    </div>
+  `;
+}
+
+function renderStep2(){
+  const services = state.data.services;
+  const selected = services.filter(s=>state.selServices.includes(s.id));
+  const totalDuration = selected.reduce((sum,s)=>sum+s.duration,0);
+  const totalPrice = selected.reduce((sum,s)=>sum+s.price,0);
+  return `
+    <div class="section-title">Hizmet seç</div>
+    <div class="section-hint">${escapeHtml(getBarber(state.data,state.selBarber).name)} için istediğin hizmetleri seç (birden fazla seçebilirsin).</div>
+    ${services.map(s=>{
+      const sel = state.selServices.includes(s.id) ? 'selected':'';
+      const checkMark = state.selServices.includes(s.id) ? '✓ ' : '';
+      return `<div class="card selectable ${sel}" data-action="pick-service" data-id="${s.id}">
+        <div class="service-row">
+          <div class="service-info"><b>${checkMark}${escapeHtml(s.name)}</b><span>${s.duration} dk</span></div>
+          <div class="service-price">${s.price}₺</div>
+        </div>
+      </div>`;
+    }).join('')}
+    ${selected.length ? `<div class="section-hint" style="margin-top:4px;">Toplam: ${totalDuration} dk · ${totalPrice}₺ (${selected.length} hizmet)</div>` : ''}
+    <div class="btn-row">
+      <button class="btn-secondary" data-action="back-step">Geri</button>
+      <button class="btn-primary" data-action="goto-step3" ${state.selServices.length?'':'disabled'}>Devam Et</button>
+    </div>
+  `;
+}
+
+function renderStep3(){
+  const barber = getBarber(state.data, state.selBarber);
+  const services = selectedServiceObjs();
+  const totalDuration = totalDurationOf(services);
+  const days = nextDays(14);
+  const dateChips = days.map(d=>{
+    const ds = localDateStr(d);
+    const dow = d.getDay();
+    const off = !barber.workingHours[dow] || (barber.blockedDates && barber.blockedDates.includes(ds));
+    const sel = ds===state.selDate ? 'selected':'';
+    const label = ds===todayStr() ? 'Bugün' : DAY_NAMES[dow];
+    return `<div class="date-chip ${sel} ${off?'disabled':''}" data-action="${off?'':'pick-date'}" data-date="${ds}">
+      <div class="dow">${label}</div><div class="dnum">${d.getDate()}</div>
+    </div>`;
+  }).join('');
+
+  const slots = generateSlots(barber, state.selDate, totalDuration, state.data.appointments);
+  const slotHtml = slots.length ? `<div class="slot-grid">${slots.map(t=>{
+      const sel = t===state.selTime ? 'selected':'';
+      return `<div class="slot ${sel}" data-action="pick-time" data-time="${t}">${t}</div>`;
+    }).join('')}</div>`
+    : `<div class="empty-note">Bu tarihte uygun saat yok. Başka bir gün dene.</div>`;
+
+  return `
+    <div class="section-title">Tarih & saat seç</div>
+    <div class="section-hint">${escapeHtml(barber.name)} · ${escapeHtml(serviceNamesOf(services))} (toplam ${totalDuration} dk)</div>
+    <div class="date-scroll">${dateChips}</div>
+    ${slotHtml}
+    <div class="btn-row">
+      <button class="btn-secondary" data-action="back-step">Geri</button>
+      <button class="btn-primary" data-action="goto-step4" ${state.selTime?'':'disabled'}>Devam Et</button>
+    </div>
+  `;
+}
+
+function renderStep4(){
+  const barber = getBarber(state.data, state.selBarber);
+  const services = selectedServiceObjs();
+  const totalPrice = totalPriceOf(services);
+  return `
+    <div class="section-title">Bilgilerini gir</div>
+    <div class="section-hint">${escapeHtml(barber.name)} · ${escapeHtml(serviceNamesOf(services))} · ${fmtDateLabel(state.selDate)}, ${state.selTime} · Toplam ${totalPrice}₺</div>
+    <div class="field">
+      <label class="field-label">Ad Soyad</label>
+      <input type="text" id="inp-name" placeholder="Adın Soyadın" value="${escapeHtml(state.custName)}">
+    </div>
+    <div class="field">
+      <label class="field-label">Telefon</label>
+      <input type="tel" id="inp-phone" placeholder="05xx xxx xx xx" value="${escapeHtml(state.custPhone)}">
+    </div>
+    <div class="field">
+      <label class="field-label">Not (opsiyonel)</label>
+      <input type="text" id="inp-note" placeholder="Örn. saçları çok kısa istemiyorum" value="${escapeHtml(state.custNote)}">
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" data-action="back-step">Geri</button>
+      <button class="btn-primary" data-action="confirm-booking">Randevuyu Onayla</button>
+    </div>
+  `;
+}
+
+function renderTicket(){
+  const t = state.lastTicket;
+  const barber = getBarber(state.data, t.barberId);
+  const services = apptServices(state.data, t);
+  const totalPrice = totalPriceOf(services);
+  const waText = encodeURIComponent(
+    `Randevu Onayı — Ustura\nSıra No: ${t.queueLabel}\nBerber: ${barber.name}\nHizmet: ${serviceNamesOf(services)}\nTarih: ${fmtDateLabel(t.date)}, ${t.time}\nToplam: ${totalPrice}₺`
+  );
+  return `
+    <div class="section-title">Randevun alındı</div>
+    <div class="section-hint">Aşağıdaki bilgileri not al, seni bekliyoruz.</div>
+    <div class="ticket">
+      <div class="ticket-top">
+        <div>
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.05em;font-family:'Oswald';">Sıra No</div>
+          <div class="ticket-num">${t.queueLabel}</div>
+        </div>
+        <div class="ticket-status">Onaylandı</div>
+      </div>
+      <div class="ticket-dash"></div>
+      <div class="ticket-row"><span class="k">Müşteri</span><span class="v">${escapeHtml(t.customerName)}</span></div>
+      <div class="ticket-row"><span class="k">Berber</span><span class="v">${escapeHtml(barber.name)}</span></div>
+      <div class="ticket-row"><span class="k">Hizmet</span><span class="v">${escapeHtml(serviceNamesOf(services))}</span></div>
+      <div class="ticket-row"><span class="k">Tarih</span><span class="v">${fmtDateLabel(t.date)}</span></div>
+      <div class="ticket-row"><span class="k">Saat</span><span class="v">${t.time}</span></div>
+      <div class="ticket-row"><span class="k">Toplam Ücret</span><span class="v">${totalPrice}₺</span></div>
+    </div>
+    <div style="margin-top:12px;">
+      <a href="https://wa.me/?text=${waText}" target="_blank" rel="noopener" class="btn-secondary" style="display:block; text-decoration:none;">WhatsApp'ta Kaydet / Paylaş</a>
+    </div>
+    <div class="btn-row">
+      <div></div>
+      <button class="btn-primary" data-action="new-booking">Yeni Randevu Al</button>
+    </div>
+  `;
+}
+
+function renderBookingTab(){
+  if(state.lastTicket) return renderTicket();
+  let inner = '';
+  if(state.step===1) inner = renderStep1();
+  else if(state.step===2) inner = renderStep2();
+  else if(state.step===3) inner = renderStep3();
+  else inner = renderStep4();
+  return renderSteps() + inner;
+}
+
+/* ============================= RENDER: RANDEVUM (SORGULA/İPTAL) ============================= */
+function normalizePhone(p){ return (p||'').replace(/\D/g,''); }
+
+function renderLookupTab(){
+  const data = state.data;
+  let resultsHtml = '';
+  if(state.lookupResults === null){
+    resultsHtml = `<div class="center-note">Telefon numaranı gir, randevularını görelim.</div>`;
+  } else if(state.lookupResults.length === 0){
+    resultsHtml = `<div class="center-note">Bu numaraya ait yaklaşan randevu bulunamadı.</div>`;
+  } else {
+    const completedCount = data.appointments.filter(a=>normalizePhone(a.phone)===normalizePhone(state.lookupPhone) && a.status==='tamamlandi').length;
+    resultsHtml = (completedCount>0 ? `<div class="section-hint" style="margin-bottom:14px;">Bu berber salonunda tamamlanan ${completedCount}. randevun bekliyor olabilir — sadakatin için teşekkürler! ✂️</div>` : '') +
+      state.lookupResults.map(a=>{
+        const barber = getBarber(data, a.barberId);
+        const services = apptServices(data, a);
+        return `
+        <div class="appt-item">
+          <div class="appt-top">
+            <span class="appt-time">${fmtDateLabel(a.date)} · ${a.time}</span>
+            <span class="badge ${a.status}">${a.status==='onaylandi' ? 'Onaylandı' : a.status==='tamamlandi' ? 'Tamamlandı' : 'İptal'}</span>
+          </div>
+          <div class="appt-name">${escapeHtml(barber?barber.name:'—')}</div>
+          <div class="appt-meta">${escapeHtml(serviceNamesOf(services))} · ${totalPriceOf(services)}₺</div>
+          ${a.status==='onaylandi' ? `
+          <div class="appt-actions">
+            <button class="danger" data-action="lookup-cancel" data-id="${a.id}">Randevuyu İptal Et</button>
+          </div>` : ''}
+        </div>`;
+      }).join('');
+  }
+  return `
+    <div class="section-title">Randevum</div>
+    <div class="section-hint">Randevunu görüntülemek veya iptal etmek için telefon numaranı gir.</div>
+    <div style="display:flex; gap:8px; margin-bottom:18px;">
+      <input type="tel" id="lookup-phone" placeholder="05xx xxx xx xx" value="${escapeHtml(state.lookupPhone)}" style="flex:1;">
+      <button class="btn-secondary" style="flex:0 0 auto; padding:0 18px;" data-action="lookup-search">Sorgula</button>
+    </div>
+    ${resultsHtml}
+  `;
+}
+
+/* ============================= RENDER: ADMIN ============================= */
+function renderLock(){
+  return `
+    <div class="lock-wrap">
+      <div class="lock-icon">✂️</div>
+      <div class="section-title" style="margin-bottom:6px;">Yönetim Paneli</div>
+      <div class="section-hint">Devam etmek için PIN gir (varsayılan: 1234)</div>
+      <div style="max-width:200px;margin:0 auto;">
+        <input class="pin-input" id="pin-field" type="password" inputmode="numeric" maxlength="4" placeholder="••••" value="${state.pinInput}">
+      </div>
+      <div style="margin-top:18px;max-width:220px;margin-left:auto;margin-right:auto;">
+        <button class="btn-primary" data-action="try-unlock">Giriş Yap</button>
+      </div>
+    </div>
+  `;
+}
+
+function statsFor(data){
+  const today = todayStr();
+  const todays = data.appointments.filter(a=>a.date===today && a.status!=='iptal');
+  const weekAhead = nextDays(7).map(d=>localDateStr(d));
+  const weekAppts = data.appointments.filter(a=>weekAhead.includes(a.date) && a.status!=='iptal');
+  const revenue = weekAppts.reduce((sum,a)=> sum + totalPriceOf(apptServices(data,a)), 0);
+  const perBarber = data.barbers.map(b=>{
+    const appts = weekAppts.filter(a=>a.barberId===b.id);
+    const rev = appts.reduce((sum,a)=> sum + totalPriceOf(apptServices(data,a)), 0);
+    return { barber:b, count: appts.length, revenue: rev };
+  }).sort((a,b)=>b.revenue-a.revenue);
+  return { todayCount: todays.length, weekRevenue: revenue, weekCount: weekAppts.length, perBarber };
+}
+
+function renderAdminAppointments(){
+  const data = state.data;
+  const stats = statsFor(data);
+  let list = data.appointments.slice();
+  if(state.filterBarber!=='all') list = list.filter(a=>a.barberId===state.filterBarber);
+  list.sort((a,b)=> (a.date+a.time).localeCompare(b.date+b.time));
+  const future = list.filter(a=>a.date>=todayStr());
+  const grouped = {};
+  future.forEach(a=>{ (grouped[a.date] = grouped[a.date]||[]).push(a); });
+
+  const barberOptions = `<option value="all">Tüm Berberler</option>` + data.barbers.map(b=>`<option value="${b.id}" ${state.filterBarber===b.id?'selected':''}>${escapeHtml(b.name)}</option>`).join('');
+
+  let bodyHtml = '';
+  const dates = Object.keys(grouped).sort();
+  if(dates.length===0){
+    bodyHtml = `<div class="center-note">Bu filtreye uygun yaklaşan randevu yok.</div>`;
+  } else {
+    dates.forEach(ds=>{
+      bodyHtml += `<div class="day-heading">${fmtDateLabel(ds)}</div>`;
+      grouped[ds].forEach(a=>{
+        const barber = getBarber(data,a.barberId);
+        const services = apptServices(data,a);
+        const serviceLabel = services.length ? serviceNamesOf(services) : '—';
+        const priceLabel = totalPriceOf(services);
+        bodyHtml += `
+          <div class="appt-item">
+            <div class="appt-top">
+              <span class="appt-time">${a.time}</span>
+              <span class="badge ${a.status}">${a.status==='onaylandi' ? 'Onaylandı': a.status==='tamamlandi' ? 'Tamamlandı' : 'İptal'}</span>
+            </div>
+            <div class="appt-name">${escapeHtml(a.customerName)}</div>
+            <div class="appt-meta">${escapeHtml(barber?barber.name:'—')} · ${escapeHtml(serviceLabel)} · ${priceLabel}₺ · ${escapeHtml(a.phone||'—')}</div>
+            ${a.note ? `<div class="appt-meta">Not: ${escapeHtml(a.note)}</div>` : ''}
+            ${a.status==='onaylandi' ? `
+            <div class="appt-actions">
+              <button class="ok" data-action="mark-done" data-id="${a.id}">Tamamlandı</button>
+              <button class="danger" data-action="mark-cancel" data-id="${a.id}">İptal Et</button>
+            </div>` : ''}
+          </div>
+        `;
+      });
+    });
+  }
+
+  return `
+    <div class="stat-grid">
+      <div class="stat-card"><div class="stat-num">${stats.todayCount}</div><div class="stat-label">Bugünkü Randevu</div></div>
+      <div class="stat-card"><div class="stat-num">${stats.weekRevenue}₺</div><div class="stat-label">Haftalık Tahmini Ciro</div></div>
+    </div>
+    ${stats.perBarber.length ? `
+    <div class="day-heading" style="margin-top:0;">Bu Hafta Berber Bazlı Performans</div>
+    ${stats.perBarber.map(p=>`
+      <div class="list-row">
+        <div>
+          <div class="name">${escapeHtml(p.barber.name)}</div>
+          <div class="sub">${p.count} randevu</div>
+        </div>
+        <div class="mono" style="color:var(--brass); font-size:15px;">${p.revenue}₺</div>
+      </div>
+    `).join('')}
+    ` : ''}
+    <div style="display:flex; gap:8px; margin:18px 0 16px 0;">
+      <select id="filter-barber" style="flex:1;">${barberOptions}</select>
+      <button class="btn-secondary" style="flex:0 0 auto; padding:10px 14px;" data-action="open-add-appt">+ Randevu</button>
+    </div>
+    ${bodyHtml}
+  `;
+}
+
+function renderAdminBarbers(){
+  const data = state.data;
+  const today = todayStr();
+  let html = data.barbers.map(b=>{
+    const workDays = Object.keys(b.workingHours).filter(k=>b.workingHours[k]).length;
+    const upcomingOff = (b.blockedDates||[]).filter(d=>d>=today).length;
+    return `<div class="list-row">
+      <div>
+        <div class="name">${escapeHtml(b.name)}</div>
+        <div class="sub">${escapeHtml(b.title)} · Haftada ${workDays} gün çalışıyor${upcomingOff ? ` · ${upcomingOff} izin günü planlı` : ''}</div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="icon-btn" data-action="edit-barber" data-id="${b.id}">Düzenle</button>
+        <button class="icon-btn" data-action="delete-barber" data-id="${b.id}">Sil</button>
+      </div>
+    </div>`;
+  }).join('');
+  html += `<div style="margin-top:6px;"><button class="btn-secondary" data-action="open-add-barber">+ Yeni Berber Ekle</button></div>`;
+  return html;
+}
+
+function renderAdminServices(){
+  const data = state.data;
+  let html = data.services.map(s=>{
+    return `<div class="list-row">
+      <div>
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="sub">${s.duration} dk · ${s.price}₺</div>
+      </div>
+      <div style="display:flex; gap:6px;">
+        <button class="icon-btn" data-action="edit-service" data-id="${s.id}">Düzenle</button>
+        <button class="icon-btn" data-action="delete-service" data-id="${s.id}">Sil</button>
+      </div>
+    </div>`;
+  }).join('');
+  html += `<div style="margin-top:6px;"><button class="btn-secondary" data-action="open-add-service">+ Yeni Hizmet Ekle</button></div>`;
+  return html;
+}
+
+function renderAdminPanel(){
+  const tabs = [['appointments','Randevular'],['barbers','Berberler'],['services','Hizmetler']];
+  const tabsHtml = `<div class="admin-tabs">${tabs.map(([k,l])=>`<button class="${state.adminTab===k?'active':''}" data-action="admin-tab" data-tab="${k}">${l}</button>`).join('')}</div>`;
+  let body = '';
+  if(state.adminTab==='appointments') body = renderAdminAppointments();
+  else if(state.adminTab==='barbers') body = renderAdminBarbers();
+  else body = renderAdminServices();
+  return `
+    <div class="section-title" style="margin-bottom:16px;">Yönetim Paneli</div>
+    ${tabsHtml}
+    ${body}
+  `;
+}
+
+function renderAdminTab(){
+  return state.adminUnlocked ? renderAdminPanel() : renderLock();
+}
+
+/* ============================= MODALS ============================= */
+function blockedDatesListHTML(){
+  const dates = (state.modal.blockedDates || []).slice().sort();
+  if(dates.length===0) return `<div style="color:var(--muted); font-size:13px; padding:6px 0;">İzin günü eklenmedi.</div>`;
+  return dates.map(ds=>`
+    <div style="display:flex; align-items:center; justify-content:space-between; padding:8px 0; border-bottom:1px solid var(--line); font-size:13.5px;">
+      <span class="mono">${escapeHtml(fmtDateLabel(ds))}</span>
+      <button class="icon-btn" data-action="remove-blocked-date" data-date="${ds}">Kaldır</button>
+    </div>
+  `).join('');
+}
+
+function renderBarberModal(){
+  const m = state.modal;
+  const editing = m.editing ? getBarber(state.data, m.editing) : null;
+  const wh = editing ? editing.workingHours : {0:null,1:{start:'09:00',end:'19:00'},2:{start:'09:00',end:'19:00'},3:{start:'09:00',end:'19:00'},4:{start:'09:00',end:'19:00'},5:{start:'09:00',end:'19:00'},6:{start:'09:00',end:'19:00'}};
+  const dayRows = [0,1,2,3,4,5,6].map(d=>{
+    const on = !!wh[d];
+    const start = on ? wh[d].start : '09:00';
+    const end = on ? wh[d].end : '19:00';
+    return `<div class="day-hours-row">
+      <input type="checkbox" data-day="${d}" class="day-toggle" ${on?'checked':''}>
+      <div class="dname">${DAY_NAMES[d]}</div>
+      <input type="time" class="day-start" data-day="${d}" value="${start}" ${on?'':'disabled'} style="flex:1;">
+      <span style="color:var(--muted);">—</span>
+      <input type="time" class="day-end" data-day="${d}" value="${end}" ${on?'':'disabled'} style="flex:1;">
+    </div>`;
+  }).join('');
+
+  return `
+    <div class="modal-title">${editing?'Berberi Düzenle':'Yeni Berber'}</div>
+    <div class="field">
+      <label class="field-label">Ad Soyad</label>
+      <input type="text" id="m-name" value="${editing?escapeHtml(editing.name):''}" placeholder="Örn. Kaan Yıldız">
+    </div>
+    <div class="field">
+      <label class="field-label">Unvan</label>
+      <input type="text" id="m-title" value="${editing?escapeHtml(editing.title):''}" placeholder="Örn. Klasik Kesim Ustası">
+    </div>
+    <label class="field-label">Çalışma Saatleri</label>
+    <div style="margin-bottom:16px;">${dayRows}</div>
+    <label class="field-label">İzin / Tatil Günleri</label>
+    <div style="display:flex; gap:8px; margin-bottom:8px;">
+      <input type="date" id="m-new-blocked" style="flex:1;">
+      <button class="btn-secondary" style="flex:0 0 auto; padding:0 16px;" data-action="add-blocked-date">Ekle</button>
+    </div>
+    <div id="blocked-dates-list" style="margin-bottom:18px;">${blockedDatesListHTML()}</div>
+    <div class="btn-row">
+      <button class="btn-secondary" data-action="close-modal">Vazgeç</button>
+      <button class="btn-primary" data-action="save-barber" data-id="${editing?editing.id:''}">Kaydet</button>
+    </div>
+  `;
+}
+
+function renderServiceModal(){
+  const m = state.modal;
+  const editing = m.editing ? getService(state.data, m.editing) : null;
+  return `
+    <div class="modal-title">${editing?'Hizmeti Düzenle':'Yeni Hizmet'}</div>
+    <div class="field">
+      <label class="field-label">Hizmet Adı</label>
+      <input type="text" id="m-name" value="${editing?escapeHtml(editing.name):''}" placeholder="Örn. Saç Kesimi">
+    </div>
+    <div class="field">
+      <label class="field-label">Süre (dakika)</label>
+      <input type="number" id="m-duration" value="${editing?editing.duration:30}" min="5" step="5">
+    </div>
+    <div class="field">
+      <label class="field-label">Fiyat (₺)</label>
+      <input type="number" id="m-price" value="${editing?editing.price:100}" min="0" step="10">
+    </div>
+    <div class="btn-row">
+      <button class="btn-secondary" data-action="close-modal">Vazgeç</button>
+      <button class="btn-primary" data-action="save-service" data-id="${editing?editing.id:''}">Kaydet</button>
+    </div>
+  `;
+}
+
+function renderAddApptModal(){
+  const data = state.data;
+  const barberOpts = data.barbers.map(b=>`<option value="${b.id}">${escapeHtml(b.name)}</option>`).join('');
+  const serviceCheckboxes = data.services.map(s=>`
+    <label style="display:flex;align-items:center;gap:9px;padding:10px 0;border-bottom:1px solid var(--line);font-size:14px;">
+      <input type="checkbox" class="m-service-cb" value="${s.id}" style="width:auto;">
+      <span style="flex:1;">${escapeHtml(s.name)}</span>
+      <span class="mono" style="color:var(--muted);font-size:12.5px;">${s.duration}dk · ${s.price}₺</span>
+    </label>
+  `).join('');
+  return `
+    <div class="modal-title">Randevu Ekle</div>
+    <div class="field"><label class="field-label">Berber</label><select id="m-barber">${barberOpts}</select></div>
+    <div class="field">
+      <label class="field-label">Hizmetler (birden fazla seçilebilir)</label>
+      <div>${serviceCheckboxes}</div>
+    </div>
+    <div class="field"><label class="field-label">Tarih</label><input type="date" id="m-date" value="${todayStr()}"></div>
+    <div class="field"><label class="field-label">Saat</label><input type="time" id="m-time" value="10:00"></div>
+    <div class="field"><label class="field-label">Müşteri Adı</label><input type="text" id="m-cname" placeholder="Ad Soyad"></div>
+    <div class="field"><label class="field-label">Telefon</label><input type="tel" id="m-cphone" placeholder="05xx xxx xx xx"></div>
+    <div class="btn-row">
+      <button class="btn-secondary" data-action="close-modal">Vazgeç</button>
+      <button class="btn-primary" data-action="save-manual-appt">Ekle</button>
+    </div>
+  `;
+}
+
+function renderConfirmModal(){
+  const m = state.modal;
+  return `
+    <div class="modal-title">Emin misin?</div>
+    <div class="section-hint" style="margin-bottom:20px;">${escapeHtml(m.message)}</div>
+    <div class="btn-row">
+      <button class="btn-secondary" data-action="confirm-no">Vazgeç</button>
+      <button class="btn-primary" style="background:var(--burgundy); color:var(--cream);" data-action="confirm-yes">Evet, Sil</button>
+    </div>
+  `;
+}
+
+async function runConfirmedAction(){
+  const action = state.modal && state.modal.onYes;
+  if(!action) { setState({ modal:null }); return; }
+  if(action.kind==='delete-barber'){
+    state.data.barbers = state.data.barbers.filter(b=>b.id!==action.id);
+    await saveData(state.data);
+    setState({ modal:null });
+    showToast('Berber silindi');
+  } else if(action.kind==='delete-service'){
+    state.data.services = state.data.services.filter(s=>s.id!==action.id);
+    await saveData(state.data);
+    setState({ modal:null });
+    showToast('Hizmet silindi');
+  } else if(action.kind==='lookup-cancel-appt'){
+    const appt = state.data.appointments.find(a=>a.id===action.id);
+    if(appt) appt.status = 'iptal';
+    await saveData(state.data);
+    const norm = normalizePhone(state.lookupPhone);
+    const results = state.data.appointments
+      .filter(a=>normalizePhone(a.phone)===norm && a.date>=todayStr() && a.status!=='iptal')
+      .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    setState({ modal:null, lookupResults: results });
+    showToast('Randevun iptal edildi');
+  } else {
+    setState({ modal:null });
+  }
+}
+
+function renderModal(){
+  if(!state.modal) return '';
+  let inner = '';
+  if(state.modal.type==='barber') inner = renderBarberModal();
+  else if(state.modal.type==='service') inner = renderServiceModal();
+  else if(state.modal.type==='addAppt') inner = renderAddApptModal();
+  else if(state.modal.type==='confirm') inner = renderConfirmModal();
+  return `<div class="modal-bg" data-action="modal-bg"><div class="modal" onclick="event.stopPropagation()">${inner}</div></div>`;
+}
+
+/* ============================= MASTER RENDER ============================= */
+function render(){
+  const root = document.getElementById('root');
+  if(!state.data){ root.innerHTML = `<div class="loading">Yükleniyor…</div>`; return; }
+  root.innerHTML = `
+    <header class="topbar">
+      <div class="brand">
+        <div class="brand-mark"></div>
+        <div>
+          <div class="brand-name display">USTURA</div>
+          <div class="brand-sub">Berber Randevu Sistemi</div>
+        </div>
+      </div>
+      <nav class="tabs">
+        <button class="${state.tab==='book'?'active':''}" data-action="switch-tab" data-tab="book">Randevu Al</button>
+        <button class="${state.tab==='lookup'?'active':''}" data-action="switch-tab" data-tab="lookup">Randevum</button>
+        <button class="${state.tab==='admin'?'active':''}" data-action="switch-tab" data-tab="admin">Yönetim</button>
+      </nav>
+    </header>
+    <main>
+      ${state.tab==='book' ? renderBookingTab() : state.tab==='lookup' ? renderLookupTab() : renderAdminTab()}
+    </main>
+    ${state.toast ? `<div class="toast">${escapeHtml(state.toast)}</div>` : ''}
+    ${renderModal()}
+  `;
+  attachHandlers();
+}
+
+/* ============================= EVENT HANDLING ============================= */
+function attachHandlers(){
+  const root = document.getElementById('root');
+  root.querySelectorAll('[data-action]').forEach(el=>{
+    el.addEventListener('click', onAction);
+  });
+  const pinField = document.getElementById('pin-field');
+  if(pinField){
+    pinField.addEventListener('input', e=>{ state.pinInput = e.target.value.replace(/\D/g,'').slice(0,4); });
+    pinField.addEventListener('keydown', e=>{ if(e.key==='Enter') tryUnlock(); });
+  }
+  ['inp-name','inp-phone','inp-note'].forEach(id=>{
+    const el = document.getElementById(id);
+    if(el) el.addEventListener('input', e=>{
+      if(id==='inp-name') state.custName = e.target.value;
+      if(id==='inp-phone') state.custPhone = e.target.value;
+      if(id==='inp-note') state.custNote = e.target.value;
+    });
+  });
+  const filterSel = document.getElementById('filter-barber');
+  if(filterSel) filterSel.addEventListener('change', e=>{ setState({ filterBarber: e.target.value }); });
+
+  root.querySelectorAll('.day-toggle').forEach(cb=>{
+    cb.addEventListener('change', e=>{
+      const day = e.target.dataset.day;
+      const startInp = root.querySelector(`.day-start[data-day="${day}"]`);
+      const endInp = root.querySelector(`.day-end[data-day="${day}"]`);
+      startInp.disabled = !e.target.checked;
+      endInp.disabled = !e.target.checked;
+    });
+  });
+}
+
+function refreshBlockedDatesList(){
+  const container = document.getElementById('blocked-dates-list');
+  if(!container) return;
+  container.innerHTML = blockedDatesListHTML();
+  container.querySelectorAll('[data-action]').forEach(el=>{ el.addEventListener('click', onAction); });
+}
+
+async function onAction(e){
+  try{
+    await onActionInner(e);
+  }catch(err){
+    console.error('Eylem hatası:', err);
+    showToast('Hata: ' + (err && err.message ? err.message : String(err)));
+  }
+}
+
+async function onActionInner(e){
+  const el = e.currentTarget;
+  const action = el.dataset.action;
+
+  if(action==='switch-tab'){ setState({ tab: el.dataset.tab }); return; }
+
+  if(action==='pick-barber'){ setState({ selBarber: el.dataset.id }); return; }
+  if(action==='goto-step2'){ setState({ step:2 }); return; }
+  if(action==='pick-service'){
+    const id = el.dataset.id;
+    const cur = state.selServices.slice();
+    const idx = cur.indexOf(id);
+    if(idx>=0) cur.splice(idx,1); else cur.push(id);
+    setState({ selServices: cur });
+    return;
+  }
+  if(action==='goto-step3'){ setState({ step:3, selTime:null }); return; }
+  if(action==='pick-date'){ setState({ selDate: el.dataset.date, selTime:null }); return; }
+  if(action==='pick-time'){ setState({ selTime: el.dataset.time }); return; }
+  if(action==='goto-step4'){ setState({ step:4 }); return; }
+  if(action==='back-step'){ setState({ step: Math.max(1, state.step-1) }); return; }
+  if(action==='new-booking'){
+    setState({ step:1, selBarber:null, selServices:[], selDate:todayStr(), selTime:null, custName:'', custPhone:'', custNote:'', lastTicket:null });
+    return;
+  }
+  if(action==='confirm-booking'){ await confirmBooking(); return; }
+
+  if(action==='lookup-search'){
+    const phoneVal = document.getElementById('lookup-phone')?.value || '';
+    const norm = normalizePhone(phoneVal);
+    if(!norm){ showToast('Telefon numarası gir'); return; }
+    const results = state.data.appointments
+      .filter(a=>normalizePhone(a.phone)===norm && a.date>=todayStr() && a.status!=='iptal')
+      .sort((a,b)=>(a.date+a.time).localeCompare(b.date+b.time));
+    setState({ lookupPhone: phoneVal, lookupResults: results });
+    return;
+  }
+  if(action==='lookup-cancel'){
+    setState({ modal:{ type:'confirm', message:'Randevunu iptal etmek istediğine emin misin?', onYes:{ kind:'lookup-cancel-appt', id: el.dataset.id } } });
+    return;
+  }
+
+  if(action==='try-unlock'){ tryUnlock(); return; }
+  if(action==='admin-tab'){ setState({ adminTab: el.dataset.tab }); return; }
+  if(action==='mark-done'){ await updateApptStatus(el.dataset.id, 'tamamlandi'); return; }
+  if(action==='mark-cancel'){ await updateApptStatus(el.dataset.id, 'iptal'); return; }
+
+  if(action==='open-add-barber'){ setState({ modal:{type:'barber', editing:null, blockedDates:[]} }); return; }
+  if(action==='edit-barber'){
+    const b = getBarber(state.data, el.dataset.id);
+    setState({ modal:{type:'barber', editing:el.dataset.id, blockedDates: (b.blockedDates||[]).slice()} });
+    return;
+  }
+  if(action==='delete-barber'){
+    setState({ modal:{ type:'confirm', message:'Bu berberi silmek istediğine emin misin? Bu işlem geri alınamaz.', onYes:{ kind:'delete-barber', id: el.dataset.id } } });
+    return;
+  }
+  if(action==='save-barber'){ await saveBarberFromModal(el.dataset.id||null); return; }
+  if(action==='add-blocked-date'){
+    const inp = document.getElementById('m-new-blocked');
+    const val = inp ? inp.value : '';
+    if(!val){ showToast('Bir tarih seç'); return; }
+    if(!state.modal.blockedDates.includes(val)){ state.modal.blockedDates.push(val); }
+    refreshBlockedDatesList();
+    if(inp) inp.value = '';
+    return;
+  }
+  if(action==='remove-blocked-date'){
+    state.modal.blockedDates = state.modal.blockedDates.filter(d=>d!==el.dataset.date);
+    refreshBlockedDatesList();
+    return;
+  }
+
+  if(action==='open-add-service'){ setState({ modal:{type:'service', editing:null} }); return; }
+  if(action==='edit-service'){ setState({ modal:{type:'service', editing:el.dataset.id} }); return; }
+  if(action==='delete-service'){
+    setState({ modal:{ type:'confirm', message:'Bu hizmeti silmek istediğine emin misin? Bu işlem geri alınamaz.', onYes:{ kind:'delete-service', id: el.dataset.id } } });
+    return;
+  }
+  if(action==='save-service'){ await saveServiceFromModal(el.dataset.id||null); return; }
+  if(action==='confirm-yes'){ await runConfirmedAction(); return; }
+  if(action==='confirm-no'){ setState({ modal:null }); return; }
+
+  if(action==='open-add-appt'){ setState({ modal:{type:'addAppt', editing:null} }); return; }
+  if(action==='save-manual-appt'){ await saveManualAppt(); return; }
+
+  if(action==='close-modal' || action==='modal-bg'){ setState({ modal:null }); return; }
+}
+
+function tryUnlock(){
+  const pin = state.pinInput || (document.getElementById('pin-field')?document.getElementById('pin-field').value:'');
+  if(pin === '1234'){ setState({ adminUnlocked:true, pinInput:'' }); }
+  else{ showToast('Hatalı PIN'); }
+}
+
+async function confirmBooking(){
+  const name = (document.getElementById('inp-name')?.value || state.custName || '').trim();
+  const phone = (document.getElementById('inp-phone')?.value || state.custPhone || '').trim();
+  const note = (document.getElementById('inp-note')?.value || state.custNote || '').trim();
+  if(!name || !phone){ showToast('Ad ve telefon zorunlu'); return; }
+
+  const services = selectedServiceObjs();
+  const totalDuration = totalDurationOf(services);
+  const sameDayCount = state.data.appointments.filter(a=>a.barberId===state.selBarber && a.date===state.selDate && a.status!=='iptal').length;
+  const barber = getBarber(state.data, state.selBarber);
+  const initial = barber.name[0].toUpperCase();
+  const queueLabel = `${initial}-${String(sameDayCount+1).padStart(2,'0')}`;
+
+  const appt = {
+    id: uid(),
+    barberId: state.selBarber,
+    serviceIds: state.selServices.slice(),
+    duration: totalDuration,
+    date: state.selDate,
+    time: state.selTime,
+    customerName: name,
+    phone: phone,
+    note: note,
+    status: 'onaylandi',
+    queueLabel,
+    createdAt: new Date().toISOString(),
+  };
+  state.data.appointments.push(appt);
+  const ok = await saveData(state.data);
+  if(!ok){ showToast('Kaydedilemedi, tekrar dene'); return; }
+  setState({ lastTicket: appt });
+}
+
+async function updateApptStatus(id, status){
+  const appt = state.data.appointments.find(a=>a.id===id);
+  if(!appt) return;
+  appt.status = status;
+  await saveData(state.data);
+  render();
+  showToast(status==='iptal' ? 'Randevu iptal edildi' : 'Randevu tamamlandı');
+}
+
+async function saveBarberFromModal(id){
+  const root = document.getElementById('root');
+  const name = root.querySelector('#m-name').value.trim();
+  const title = root.querySelector('#m-title').value.trim();
+  if(!name){ showToast('İsim gerekli'); return; }
+  const workingHours = {};
+  [0,1,2,3,4,5,6].forEach(d=>{
+    const toggle = root.querySelector(`.day-toggle[data-day="${d}"]`);
+    if(toggle.checked){
+      const s = root.querySelector(`.day-start[data-day="${d}"]`).value;
+      const e = root.querySelector(`.day-end[data-day="${d}"]`).value;
+      workingHours[d] = { start:s, end:e };
+    } else {
+      workingHours[d] = null;
+    }
+  });
+  const blockedDates = (state.modal.blockedDates || []).slice();
+  if(id){
+    const b = getBarber(state.data, id);
+    b.name = name; b.title = title; b.workingHours = workingHours; b.blockedDates = blockedDates;
+  } else {
+    state.data.barbers.push({ id: uid(), name, title, workingHours, blockedDates });
+  }
+  await saveData(state.data);
+  setState({ modal:null });
+  showToast('Berber kaydedildi');
+}
+
+async function saveServiceFromModal(id){
+  const root = document.getElementById('root');
+  const name = root.querySelector('#m-name').value.trim();
+  const duration = parseInt(root.querySelector('#m-duration').value, 10) || 30;
+  const price = parseInt(root.querySelector('#m-price').value, 10) || 0;
+  if(!name){ showToast('Hizmet adı gerekli'); return; }
+  if(id){
+    const s = getService(state.data, id);
+    s.name = name; s.duration = duration; s.price = price;
+  } else {
+    state.data.services.push({ id: uid(), name, duration, price });
+  }
+  await saveData(state.data);
+  setState({ modal:null });
+  showToast('Hizmet kaydedildi');
+}
+
+async function saveManualAppt(){
+  const root = document.getElementById('root');
+  const barberId = root.querySelector('#m-barber').value;
+  const serviceIds = Array.from(root.querySelectorAll('.m-service-cb:checked')).map(cb=>cb.value);
+  const date = root.querySelector('#m-date').value;
+  const time = root.querySelector('#m-time').value;
+  const cname = root.querySelector('#m-cname').value.trim();
+  const cphone = root.querySelector('#m-cphone').value.trim();
+  if(!cname || !date || !time){ showToast('Zorunlu alanları doldur'); return; }
+  if(serviceIds.length===0){ showToast('En az bir hizmet seç'); return; }
+  const services = serviceIds.map(id=>getService(state.data,id)).filter(Boolean);
+  const totalDuration = totalDurationOf(services);
+  const barber = getBarber(state.data, barberId);
+  const sameDayCount = state.data.appointments.filter(a=>a.barberId===barberId && a.date===date && a.status!=='iptal').length;
+  const appt = {
+    id: uid(), barberId, serviceIds, duration: totalDuration, date, time,
+    customerName: cname, phone: cphone, note:'', status:'onaylandi',
+    queueLabel: `${barber.name[0].toUpperCase()}-${String(sameDayCount+1).padStart(2,'0')}`,
+    createdAt: new Date().toISOString(),
+  };
+  state.data.appointments.push(appt);
+  await saveData(state.data);
+  setState({ modal:null });
+  showToast('Randevu eklendi');
+}
+
+/* ============================= BAŞLAT ============================= */
+window.addEventListener('error', function(e){
+  console.error('Genel hata:', e.error || e.message);
+  showToast('Hata: ' + (e.message || 'bilinmeyen hata'));
+});
+window.addEventListener('unhandledrejection', function(e){
+  console.error('İşlenmeyen promise hatası:', e.reason);
+  showToast('Hata: ' + (e.reason && e.reason.message ? e.reason.message : String(e.reason)));
+});
+
+(async function init(){
+  try{
+    state.data = await loadData();
+  }catch(e){
+    console.warn('Veri yüklenemedi, varsayılan verilerle başlatılıyor.', e);
+    state.data = defaultData();
+    storageAvailable = false;
+  }
+  render();
+  if(!storageAvailable){
+    showToast('Kalıcı depolama şu an kullanılamıyor — değişiklikler bu oturumda geçerli');
+  }
+})();
+</script>
+</body>
+</html>
